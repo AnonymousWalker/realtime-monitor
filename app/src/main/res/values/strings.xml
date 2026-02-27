@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Realtime Monitor</string>
+    <string name="btn_start">Start Streaming</string>
+    <string name="btn_stop">Stop Streaming</string>
+    <string name="status_initializing">Initializing camera…</string>
+    <string name="status_ready">Camera ready. Tap Start to begin streaming.</string>
+    <string name="status_streaming">Streaming…</string>
+    <string name="status_stopped">Stopped. Tap Start to begin streaming.</string>
+    <string name="permission_denied">Camera and microphone permissions are required</string>
+</resources>
