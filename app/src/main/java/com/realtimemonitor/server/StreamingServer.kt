@@ -7,6 +7,8 @@ import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.log10
+import kotlin.math.sqrt
 
 class StreamingServer(
     port: Int = DEFAULT_PORT,
@@ -27,6 +29,9 @@ class StreamingServer(
     private var rotationDegrees = 0
     private var flashOn = false
     private var currentResolution = "720p"
+
+    @Volatile
+    private var currentAudioLevel = -60f
 
     var onZoomChanged: ((Float) -> Unit)? = null
     var onFlashToggled: ((Boolean) -> Unit)? = null
@@ -50,6 +55,7 @@ class StreamingServer(
             uri == "/api/flash" && method == Method.POST -> handleFlash()
             uri == "/api/switch" && method == Method.POST -> handleSwitchCamera()
             uri == "/api/resolution" && method == Method.POST -> handleResolution(session)
+            uri == "/api/audio-level" -> handleAudioLevel()
             uri == "/api/status" -> handleStatus()
             else -> newFixedLengthResponse(
                 Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"
@@ -73,6 +79,13 @@ class StreamingServer(
     }
 
     fun pushAudioData(pcmData: ByteArray) {
+        val instantDb = calculateRmsDb(pcmData)
+        currentAudioLevel = if (instantDb > currentAudioLevel) {
+            instantDb
+        } else {
+            currentAudioLevel * 0.85f + instantDb * 0.15f
+        }
+
         val deadClients = mutableListOf<AudioClient>()
         for (client in audioClients) {
             try {
@@ -85,6 +98,25 @@ class StreamingServer(
             audioClients.remove(it)
             it.close()
         }
+    }
+
+    private fun calculateRmsDb(pcmData: ByteArray): Float {
+        val sampleCount = pcmData.size / 2
+        if (sampleCount == 0) return -60f
+
+        var sumSquares = 0.0
+        for (i in 0 until sampleCount) {
+            val low = pcmData[i * 2].toInt() and 0xFF
+            val high = pcmData[i * 2 + 1].toInt()
+            val sample = (high shl 8) or low
+            sumSquares += sample.toDouble() * sample.toDouble()
+        }
+
+        val rms = sqrt(sumSquares / sampleCount)
+        if (rms < 1.0) return -60f
+
+        val db = 20.0 * log10(rms / 32768.0)
+        return db.toFloat().coerceIn(-60f, 0f)
     }
 
     fun getConnectedClientCount(): Int = mjpegClients.size
@@ -182,6 +214,10 @@ class StreamingServer(
         currentResolution = value
         onResolutionChanged?.invoke(value)
         return jsonResponse("""{"resolution":"$currentResolution"}""")
+    }
+
+    private fun handleAudioLevel(): Response {
+        return jsonResponse("""{"level":$currentAudioLevel}""")
     }
 
     private fun handleStatus(): Response {
