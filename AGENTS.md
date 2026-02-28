@@ -30,6 +30,10 @@ All Gradle commands require `ANDROID_HOME=/opt/android-sdk` in the environment.
 - `WavHeader` — generates WAV file headers for audio streaming
 - `app/src/main/assets/index.html` — browser-based monitoring client (dark-themed)
 
+### Workflow preferences
+
+- **Always provide the debug APK** after each implementation. Copy it to `/opt/cursor/artifacts/` and create a GitHub release via `gh release create` so the user can download it immediately.
+
 ### Non-obvious notes
 
 - The Gradle wrapper (`gradlew`) must be generated once via `gradle wrapper --gradle-version 8.4` if the JAR is missing.
