@@ -174,7 +174,7 @@ class StreamingServer(
         val value = session.parameters["value"]?.firstOrNull()
             ?: return jsonResponse("""{"error":"Missing value parameter"}""")
 
-        val valid = listOf("480p", "720p", "1080p")
+        val valid = listOf("480p", "720p")
         if (value !in valid) {
             return jsonResponse("""{"error":"Invalid resolution. Options: ${valid.joinToString()}"}""")
         }

@@ -26,8 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 enum class StreamResolution(val width: Int, val height: Int, val label: String) {
     SD(640, 480, "480p"),
-    HD(1280, 720, "720p"),
-    FULL_HD(1920, 1080, "1080p");
+    HD(1280, 720, "720p");
 
     companion object {
         fun fromLabel(label: String): StreamResolution? =
