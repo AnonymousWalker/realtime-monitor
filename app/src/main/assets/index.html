@@ -129,8 +129,8 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            flex: 1;
-            min-width: 0;
+            width: 140px;
+            flex-shrink: 0;
         }
 
         .volume-group input[type="range"] {
@@ -141,13 +141,15 @@
             background: #333;
             border-radius: 2px;
             outline: none;
-            min-width: 60px;
+            padding: 12px 0;
+            margin: -12px 0;
+            background-clip: content-box;
         }
 
         .volume-group input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: #4ecca3;
             cursor: pointer;
@@ -227,7 +229,10 @@
 <body>
     <div class="header">
         <h1>Realtime Monitor</h1>
-        <span id="statusBadge" class="status-badge disconnected">Connecting…</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button id="btnRefresh" class="ctrl-btn" style="width:32px;height:32px;font-size:15px;min-width:32px;" title="Refresh">&#x21bb;</button>
+            <span id="statusBadge" class="status-badge disconnected">Connecting…</span>
+        </div>
     </div>
 
     <div class="video-container">
@@ -241,13 +246,12 @@
         <div class="control-row">
             <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
             <div class="volume-group">
-                <input type="range" id="volumeSlider" min="0" max="150" step="5" value="80" />
-                <span id="volumeValue" class="volume-value">80%</span>
+                <input type="range" id="volumeSlider" min="0" max="150" step="5" value="120" />
+                <span id="volumeValue" class="volume-value">120%</span>
             </div>
             <div class="separator"></div>
             <button id="btnRotate" class="ctrl-btn" title="Rotate 90°">&#x21bb;</button>
             <button id="btnFlash" class="ctrl-btn" title="Toggle Flash">&#x1f4a1;</button>
-            <button id="btnSwitch" class="ctrl-btn" title="Switch Camera">&#x1f504;</button>
         </div>
 
         <!-- Row 2: Zoom controls + Resolution -->
@@ -255,7 +259,7 @@
             <button id="btnZoomOut" class="ctrl-btn zoom-btn" title="Zoom Out">&minus;</button>
             <span id="zoomDisplay" class="zoom-display">1.0x</span>
             <button id="btnZoomIn" class="ctrl-btn zoom-btn" title="Zoom In">+</button>
-            <button id="btnZoomReset" class="ctrl-btn reset-btn" title="Reset Zoom">Reset</button>
+            <button id="btnZoomReset" class="ctrl-btn reset-btn" title="Reset Zoom">Reset Zoom</button>
             <div class="separator"></div>
             <div class="res-group">
                 <button class="res-btn" data-res="480p">480p</button>
@@ -277,7 +281,7 @@
         var volumeValue = document.getElementById('volumeValue');
         var btnRotate = document.getElementById('btnRotate');
         var btnFlash = document.getElementById('btnFlash');
-        var btnSwitch = document.getElementById('btnSwitch');
+        var btnRefresh = document.getElementById('btnRefresh');
         var btnZoomIn = document.getElementById('btnZoomIn');
         var btnZoomOut = document.getElementById('btnZoomOut');
         var btnZoomReset = document.getElementById('btnZoomReset');
@@ -456,9 +460,9 @@
                 .catch(function () {});
         });
 
-        // ── Switch Camera ───────────────────────────────────────
-        btnSwitch.addEventListener('click', function () {
-            fetch(baseUrl + '/api/switch', { method: 'POST' }).catch(function () {});
+        // ── Refresh ──────────────────────────────────────────────
+        btnRefresh.addEventListener('click', function () {
+            window.location.reload();
         });
 
         // ── Resolution ──────────────────────────────────────────
