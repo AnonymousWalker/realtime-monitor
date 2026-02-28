@@ -13,6 +13,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.realtimemonitor.camera.CameraHelper
+import com.realtimemonitor.camera.StreamResolution
 import com.realtimemonitor.server.StreamingServer
 import java.util.Locale
 
@@ -108,6 +109,16 @@ class MainActivity : AppCompatActivity() {
                 cameraHelper.switchCamera(this, previewView)
             }
         }
+
+        streamingServer?.onResolutionChanged = { label ->
+            StreamResolution.fromLabel(label)?.let { resolution ->
+                runOnUiThread {
+                    cameraHelper.setResolution(resolution)
+                }
+            }
+        }
+
+        streamingServer?.setMaxZoom(cameraHelper.getMaxZoom())
 
         cameraHelper.onFrameAvailable = { jpegData ->
             streamingServer?.pushVideoFrame(jpegData)
