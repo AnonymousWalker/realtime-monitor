@@ -347,7 +347,7 @@
                     if (buf.byteLength >= 2) {
                         playPcmBuffer(buf);
                     }
-                    audioPollTimer = setTimeout(pollAudio, 150);
+                    audioPollTimer = setTimeout(pollAudio, 100);
                 })
                 .catch(function () {
                     audioPollTimer = setTimeout(pollAudio, 500);
@@ -357,11 +357,21 @@
         function playPcmBuffer(arrayBuf) {
             if (!audioCtx || !gainNode) return;
 
-            var byteLen = arrayBuf.byteLength - (arrayBuf.byteLength % 2);
-            if (byteLen < 2) return;
+            var totalBytes = arrayBuf.byteLength - (arrayBuf.byteLength % 2);
+            if (totalBytes < 2) return;
+
+            // Keep only the latest ~250ms to avoid backlog
+            var maxBytes = Math.floor(SAMPLE_RATE * 2 * 0.25);
+            maxBytes -= maxBytes % 2;
+            var offset = 0;
+            if (totalBytes > maxBytes) {
+                offset = totalBytes - maxBytes;
+                offset -= offset % 2;
+            }
+            var useLen = totalBytes - offset;
 
             try {
-                var int16 = new Int16Array(arrayBuf, 0, byteLen / 2);
+                var int16 = new Int16Array(arrayBuf, offset, useLen / 2);
                 var audioBuffer = audioCtx.createBuffer(1, int16.length, SAMPLE_RATE);
                 var channel = audioBuffer.getChannelData(0);
                 for (var i = 0; i < int16.length; i++) {
@@ -373,8 +383,9 @@
                 source.connect(gainNode);
 
                 var now = audioCtx.currentTime;
-                if (nextPlayTime < now) {
-                    nextPlayTime = now + 0.02;
+                // Reset if too far behind or ahead
+                if (nextPlayTime < now || nextPlayTime > now + 0.3) {
+                    nextPlayTime = now + 0.01;
                 }
                 source.start(nextPlayTime);
                 nextPlayTime += audioBuffer.duration;
@@ -499,7 +510,7 @@
         })();
 
         function updateVuMeter(db) {
-            smoothedLevel = smoothedLevel + 0.35 * (db - smoothedLevel);
+            smoothedLevel = smoothedLevel + 0.5 * (db - smoothedLevel);
             var norm = (smoothedLevel + 60) / 60;
             if (norm < 0) norm = 0;
             if (norm > 1) norm = 1;

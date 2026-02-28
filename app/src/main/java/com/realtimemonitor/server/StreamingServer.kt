@@ -20,7 +20,7 @@ class StreamingServer(
         const val DEFAULT_PORT = 4747
         private const val MJPEG_BOUNDARY = "--frame"
         private const val ZOOM_STEP = 0.2f
-        private const val MAX_AUDIO_QUEUE_SIZE = 80
+        private const val MAX_AUDIO_QUEUE_SIZE = 10
     }
 
     private val mjpegClients = ConcurrentLinkedQueue<MjpegClient>()
@@ -85,7 +85,7 @@ class StreamingServer(
         currentAudioLevel = if (instantDb > currentAudioLevel) {
             instantDb
         } else {
-            currentAudioLevel * 0.85f + instantDb * 0.15f
+            currentAudioLevel * 0.6f + instantDb * 0.4f
         }
 
         audioBuffer.offer(pcmData.clone())
