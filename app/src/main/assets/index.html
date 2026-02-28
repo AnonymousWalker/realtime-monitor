@@ -314,13 +314,12 @@
             setTimeout(connectVideo, 2000);
         });
 
-        // ── Audio (Web Audio API with raw PCM) ─────────────────
+        // ── Audio (Web Audio API with polling) ───────────────────
         var audioCtx = null;
         var gainNode = null;
-        var audioReader = null;
         var nextPlayTime = 0;
-        var leftoverBytes = null;
         var SAMPLE_RATE = 16000;
+        var audioPollTimer = null;
 
         function initAudioContext() {
             if (audioCtx) return;
@@ -337,79 +336,58 @@
                 audioCtx.resume();
             }
             nextPlayTime = 0;
-            leftoverBytes = null;
+            pollAudio();
+        }
 
-            fetch(baseUrl + '/audio')
-                .then(function (response) {
-                    audioReader = response.body.getReader();
-                    readAudioChunk();
+        function pollAudio() {
+            if (!audioEnabled) return;
+            fetch(baseUrl + '/audio/poll')
+                .then(function (r) { return r.arrayBuffer(); })
+                .then(function (buf) {
+                    if (buf.byteLength >= 2) {
+                        playPcmBuffer(buf);
+                    }
+                    audioPollTimer = setTimeout(pollAudio, 150);
                 })
                 .catch(function () {
-                    audioEnabled = false;
-                    btnAudio.classList.remove('active');
+                    audioPollTimer = setTimeout(pollAudio, 500);
                 });
         }
 
-        function readAudioChunk() {
-            if (!audioReader || !audioEnabled) return;
-            audioReader.read().then(function (result) {
-                if (result.done) return;
-                playPcmChunk(result.value);
-                readAudioChunk();
-            }).catch(function () {
-                if (audioEnabled) {
-                    setTimeout(startAudio, 1000);
-                }
-            });
-        }
-
-        function playPcmChunk(rawData) {
+        function playPcmBuffer(arrayBuf) {
             if (!audioCtx || !gainNode) return;
 
-            var data;
-            if (leftoverBytes) {
-                data = new Uint8Array(leftoverBytes.length + rawData.byteLength);
-                data.set(leftoverBytes, 0);
-                data.set(new Uint8Array(rawData.buffer, rawData.byteOffset, rawData.byteLength), leftoverBytes.length);
-                leftoverBytes = null;
-            } else {
-                data = new Uint8Array(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+            var byteLen = arrayBuf.byteLength - (arrayBuf.byteLength % 2);
+            if (byteLen < 2) return;
+
+            try {
+                var int16 = new Int16Array(arrayBuf, 0, byteLen / 2);
+                var audioBuffer = audioCtx.createBuffer(1, int16.length, SAMPLE_RATE);
+                var channel = audioBuffer.getChannelData(0);
+                for (var i = 0; i < int16.length; i++) {
+                    channel[i] = int16[i] / 32768.0;
+                }
+
+                var source = audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(gainNode);
+
+                var now = audioCtx.currentTime;
+                if (nextPlayTime < now) {
+                    nextPlayTime = now + 0.02;
+                }
+                source.start(nextPlayTime);
+                nextPlayTime += audioBuffer.duration;
+            } catch (e) {
+                // skip corrupt chunk
             }
-
-            var usableLen = data.length - (data.length % 2);
-            if (data.length % 2 !== 0) {
-                leftoverBytes = new Uint8Array([data[data.length - 1]]);
-            }
-            if (usableLen < 2) return;
-
-            var aligned = new ArrayBuffer(usableLen);
-            new Uint8Array(aligned).set(data.subarray(0, usableLen));
-            var int16 = new Int16Array(aligned);
-
-            var audioBuffer = audioCtx.createBuffer(1, int16.length, SAMPLE_RATE);
-            var channel = audioBuffer.getChannelData(0);
-            for (var i = 0; i < int16.length; i++) {
-                channel[i] = int16[i] / 32768.0;
-            }
-
-            var source = audioCtx.createBufferSourceNode();
-            source.buffer = audioBuffer;
-            source.connect(gainNode);
-
-            var now = audioCtx.currentTime;
-            if (nextPlayTime < now) {
-                nextPlayTime = now + 0.05;
-            }
-            source.start(nextPlayTime);
-            nextPlayTime += audioBuffer.duration;
         }
 
         function stopAudio() {
-            if (audioReader) {
-                audioReader.cancel().catch(function () {});
-                audioReader = null;
+            if (audioPollTimer) {
+                clearTimeout(audioPollTimer);
+                audioPollTimer = null;
             }
-            leftoverBytes = null;
         }
 
         btnAudio.addEventListener('click', function () {

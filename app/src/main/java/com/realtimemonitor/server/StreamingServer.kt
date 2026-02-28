@@ -1,6 +1,7 @@
 package com.realtimemonitor.server
 
 import fi.iki.elonen.NanoHTTPD
+import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.PipedInputStream
@@ -19,10 +20,11 @@ class StreamingServer(
         const val DEFAULT_PORT = 4747
         private const val MJPEG_BOUNDARY = "--frame"
         private const val ZOOM_STEP = 0.2f
+        private const val MAX_AUDIO_QUEUE_SIZE = 80
     }
 
     private val mjpegClients = ConcurrentLinkedQueue<MjpegClient>()
-    private val audioClients = ConcurrentLinkedQueue<AudioClient>()
+    private val audioBuffer = ConcurrentLinkedQueue<ByteArray>()
 
     private var currentZoom = 1.0f
     private var maxZoom = 10.0f
@@ -49,7 +51,7 @@ class StreamingServer(
         return when {
             uri == "/" || uri == "/index.html" -> serveWebClient()
             uri == "/video" -> serveMjpegStream()
-            uri == "/audio" -> serveAudioStream()
+            uri == "/audio/poll" -> serveAudioPoll()
             uri == "/api/zoom" && method == Method.POST -> handleZoom(session)
             uri == "/api/rotate" && method == Method.POST -> handleRotate()
             uri == "/api/flash" && method == Method.POST -> handleFlash()
@@ -86,17 +88,9 @@ class StreamingServer(
             currentAudioLevel * 0.85f + instantDb * 0.15f
         }
 
-        val deadClients = mutableListOf<AudioClient>()
-        for (client in audioClients) {
-            try {
-                client.pushData(pcmData)
-            } catch (_: Exception) {
-                deadClients.add(client)
-            }
-        }
-        deadClients.forEach {
-            audioClients.remove(it)
-            it.close()
+        audioBuffer.offer(pcmData.clone())
+        while (audioBuffer.size > MAX_AUDIO_QUEUE_SIZE) {
+            audioBuffer.poll()
         }
     }
 
@@ -148,17 +142,34 @@ class StreamingServer(
         return response
     }
 
-    private fun serveAudioStream(): Response {
-        val client = AudioClient()
-        audioClients.add(client)
+    private fun serveAudioPoll(): Response {
+        val chunks = mutableListOf<ByteArray>()
+        while (true) {
+            val chunk = audioBuffer.poll() ?: break
+            chunks.add(chunk)
+        }
 
-        val response = newChunkedResponse(
-            Response.Status.OK,
-            "application/octet-stream",
-            client.inputStream
+        if (chunks.isEmpty()) {
+            val response = newFixedLengthResponse(
+                Response.Status.OK, "application/octet-stream",
+                ByteArrayInputStream(ByteArray(0)), 0
+            )
+            response.addHeader("Access-Control-Allow-Origin", "*")
+            return response
+        }
+
+        val totalSize = chunks.sumOf { it.size }
+        val combined = ByteArray(totalSize)
+        var offset = 0
+        for (chunk in chunks) {
+            System.arraycopy(chunk, 0, combined, offset, chunk.size)
+            offset += chunk.size
+        }
+
+        val response = newFixedLengthResponse(
+            Response.Status.OK, "application/octet-stream",
+            ByteArrayInputStream(combined), totalSize.toLong()
         )
-        response.addHeader("Cache-Control", "no-cache")
-        response.addHeader("Connection", "keep-alive")
         response.addHeader("Access-Control-Allow-Origin", "*")
         return response
     }
@@ -235,8 +246,7 @@ class StreamingServer(
     override fun stop() {
         mjpegClients.forEach { it.close() }
         mjpegClients.clear()
-        audioClients.forEach { it.close() }
-        audioClients.clear()
+        audioBuffer.clear()
         super.stop()
     }
 
@@ -268,27 +278,4 @@ class StreamingServer(
         }
     }
 
-    inner class AudioClient {
-        private val pipedOut = PipedOutputStream()
-        val inputStream: PipedInputStream = PipedInputStream(pipedOut, 64 * 1024)
-        private val closed = AtomicBoolean(false)
-
-        fun pushData(pcmData: ByteArray) {
-            if (closed.get()) return
-            try {
-                pipedOut.write(pcmData)
-                pipedOut.flush()
-            } catch (e: IOException) {
-                close()
-                throw e
-            }
-        }
-
-        fun close() {
-            if (closed.compareAndSet(false, true)) {
-                try { pipedOut.close() } catch (_: Exception) { }
-                try { inputStream.close() } catch (_: Exception) { }
-            }
-        }
-    }
 }
