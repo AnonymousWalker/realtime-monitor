@@ -254,7 +254,7 @@
         <!-- Row 1: Volume group + Other controls (wraps on small screens) -->
         <div class="control-row">
             <div class="ctrl-group">
-                <button id="btnAudio" class="ctrl-btn active" title="Toggle Audio">&#x1f50a;</button>
+                <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
                 <div class="volume-group">
                     <input type="range" id="volumeSlider" min="0" max="150" step="5" value="120" />
                     <span id="volumeValue" class="volume-value">120%</span>
@@ -302,7 +302,7 @@
         var resButtons = document.querySelectorAll('.res-btn');
 
         var rotation = 0;
-        var audioEnabled = true;
+        var audioEnabled = false;
         var flashEnabled = false;
         var currentZoom = 1.0;
 
@@ -317,13 +317,8 @@
             statusBadge.classList.remove('disconnected');
         }
 
-        var audioStarted = false;
         videoFeed.addEventListener('load', function () {
             noSignal.style.display = 'none';
-            if (!audioStarted && audioEnabled) {
-                audioStarted = true;
-                startAudio();
-            }
         });
 
         videoFeed.addEventListener('error', function () {
