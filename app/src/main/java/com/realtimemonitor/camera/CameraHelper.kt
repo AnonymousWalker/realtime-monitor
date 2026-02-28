@@ -24,11 +24,21 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
+enum class StreamResolution(val width: Int, val height: Int, val label: String) {
+    SD(640, 480, "480p"),
+    HD(1280, 720, "720p");
+
+    companion object {
+        fun fromLabel(label: String): StreamResolution? =
+            entries.find { it.label == label }
+    }
+}
+
 class CameraHelper(private val context: Context) {
 
     companion object {
         private const val TAG = "CameraHelper"
-        private const val AUDIO_SAMPLE_RATE = 16000
+        const val AUDIO_SAMPLE_RATE = 16000
         private const val AUDIO_CHANNEL = AudioFormat.CHANNEL_IN_MONO
         private const val AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT
     }
@@ -40,15 +50,23 @@ class CameraHelper(private val context: Context) {
     private var cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
+    private var storedLifecycleOwner: LifecycleOwner? = null
+    private var storedPreviewView: PreviewView? = null
+
     private var audioRecord: AudioRecord? = null
     private var audioThread: Thread? = null
     private val isRecordingAudio = AtomicBoolean(false)
+
+    var currentResolution: StreamResolution = StreamResolution.HD
+        private set
 
     var onFrameAvailable: ((ByteArray) -> Unit)? = null
     var onAudioAvailable: ((ByteArray) -> Unit)? = null
     var jpegQuality: Int = 70
 
     fun startCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        storedLifecycleOwner = lifecycleOwner
+        storedPreviewView = previewView
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -66,7 +84,7 @@ class CameraHelper(private val context: Context) {
         val resolutionSelector = ResolutionSelector.Builder()
             .setResolutionStrategy(
                 ResolutionStrategy(
-                    android.util.Size(1280, 720),
+                    android.util.Size(currentResolution.width, currentResolution.height),
                     ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
                 )
             )
@@ -94,6 +112,13 @@ class CameraHelper(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Camera binding failed", e)
         }
+    }
+
+    fun setResolution(resolution: StreamResolution) {
+        currentResolution = resolution
+        val lo = storedLifecycleOwner ?: return
+        val pv = storedPreviewView ?: return
+        bindCameraUseCases(lo, pv)
     }
 
     private fun processFrame(imageProxy: ImageProxy) {
@@ -137,7 +162,6 @@ class CameraHelper(private val context: Context) {
 
         val nv21 = ByteArray(width * height * 3 / 2)
 
-        // Copy Y channel
         val yBuffer = yPlane.buffer.duplicate()
         if (yRowStride == width) {
             yBuffer.get(nv21, 0, width * height)
@@ -148,7 +172,6 @@ class CameraHelper(private val context: Context) {
             }
         }
 
-        // Copy interleaved VU for NV21
         val uBuffer = uPlane.buffer.duplicate()
         val vBuffer = vPlane.buffer.duplicate()
         val uvHeight = height / 2
