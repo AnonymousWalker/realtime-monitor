@@ -80,6 +80,16 @@
 
         .control-row:last-child { margin-bottom: 0; }
 
+        .control-row.wrap-row {
+            flex-wrap: wrap;
+        }
+
+        .ctrl-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .ctrl-btn {
             min-width: 40px;
             height: 40px;
@@ -242,16 +252,19 @@
     </div>
 
     <div class="controls">
-        <!-- Row 1: Audio, Volume, utility buttons -->
-        <div class="control-row">
-            <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
-            <div class="volume-group">
-                <input type="range" id="volumeSlider" min="0" max="150" step="5" value="120" />
-                <span id="volumeValue" class="volume-value">120%</span>
+        <!-- Row 1: Volume group + Other controls (wraps on small screens) -->
+        <div class="control-row wrap-row">
+            <div class="ctrl-group">
+                <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
+                <div class="volume-group">
+                    <input type="range" id="volumeSlider" min="0" max="150" step="5" value="120" />
+                    <span id="volumeValue" class="volume-value">120%</span>
+                </div>
             </div>
-            <div class="separator"></div>
-            <button id="btnRotate" class="ctrl-btn" title="Rotate 90°">&#x21bb;</button>
-            <button id="btnFlash" class="ctrl-btn" title="Toggle Flash">&#x1f4a1;</button>
+            <div class="ctrl-group">
+                <button id="btnRotate" class="ctrl-btn" title="Rotate 90°">&#x21bb;</button>
+                <button id="btnFlash" class="ctrl-btn" title="Toggle Flash">&#x1f4a1;</button>
+            </div>
         </div>
 
         <!-- Row 2: Zoom controls + Resolution -->
