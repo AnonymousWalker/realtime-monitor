@@ -27,11 +27,7 @@
             border-bottom: 1px solid #1a2744;
         }
 
-        .header h1 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #4ecca3;
-        }
+        .header h1 { font-size: 16px; font-weight: 600; color: #4ecca3; }
 
         .status-badge {
             font-size: 12px;
@@ -71,57 +67,73 @@
 
         .controls {
             background: #16213e;
-            padding: 12px 16px;
+            padding: 10px 14px 8px;
             border-top: 1px solid #1a2744;
         }
 
         .control-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .control-row:last-child { margin-bottom: 0; }
 
         .ctrl-btn {
-            width: 44px;
-            height: 44px;
+            min-width: 40px;
+            height: 40px;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             background: #1a2744;
             color: #e0e0e0;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.15s, transform 0.1s;
             flex-shrink: 0;
+            padding: 0 6px;
         }
 
         .ctrl-btn:hover { background: #243352; }
         .ctrl-btn:active { transform: scale(0.93); }
         .ctrl-btn.active { background: #4ecca3; color: #0f0f1a; }
 
-        .zoom-group {
-            flex: 1;
+        .ctrl-btn.zoom-btn { font-size: 22px; font-weight: bold; width: 40px; }
+
+        .zoom-display {
+            font-size: 14px;
+            color: #4ecca3;
+            min-width: 44px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .ctrl-btn.reset-btn {
+            font-size: 12px;
+            padding: 0 10px;
+            color: #aaa;
+        }
+
+        .separator {
+            width: 1px;
+            height: 28px;
+            background: #2a3a5a;
+            flex-shrink: 0;
+        }
+
+        .volume-group {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: #1a2744;
-            border-radius: 10px;
-            padding: 0 12px;
-            height: 44px;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
         }
 
-        .zoom-group label {
-            font-size: 13px;
-            color: #888;
-            white-space: nowrap;
-        }
-
-        .zoom-group input[type="range"] {
+        .volume-group input[type="range"] {
             flex: 1;
             -webkit-appearance: none;
             appearance: none;
@@ -129,37 +141,57 @@
             background: #333;
             border-radius: 2px;
             outline: none;
+            min-width: 60px;
         }
 
-        .zoom-group input[type="range"]::-webkit-slider-thumb {
+        .volume-group input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: #4ecca3;
             cursor: pointer;
         }
 
-        .zoom-value {
-            font-size: 13px;
-            color: #4ecca3;
-            min-width: 32px;
+        .volume-value {
+            font-size: 12px;
+            color: #888;
+            min-width: 30px;
             text-align: right;
             font-variant-numeric: tabular-nums;
         }
+
+        .res-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .res-btn {
+            height: 32px;
+            border: 1px solid #2a3a5a;
+            border-radius: 6px;
+            background: transparent;
+            color: #888;
+            font-size: 12px;
+            padding: 0 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .res-btn:hover { border-color: #4ecca3; color: #ccc; }
+        .res-btn.active { background: #4ecca3; color: #0f0f1a; border-color: #4ecca3; font-weight: 600; }
 
         .info-bar {
             display: flex;
             justify-content: space-between;
             font-size: 11px;
             color: #555;
-            padding: 0 2px;
+            padding: 2px 2px 0;
         }
 
-        audio { display: none; }
-
         @media (min-width: 768px) {
-            .controls { padding: 14px 24px; }
+            .controls { padding: 12px 24px 10px; }
             .header { padding: 12px 24px; }
         }
     </style>
@@ -176,16 +208,30 @@
     </div>
 
     <div class="controls">
+        <!-- Row 1: Audio, Volume, utility buttons -->
         <div class="control-row">
             <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
+            <div class="volume-group">
+                <input type="range" id="volumeSlider" min="0" max="150" step="5" value="80" />
+                <span id="volumeValue" class="volume-value">80%</span>
+            </div>
+            <div class="separator"></div>
             <button id="btnRotate" class="ctrl-btn" title="Rotate 90°">&#x21bb;</button>
             <button id="btnFlash" class="ctrl-btn" title="Toggle Flash">&#x1f4a1;</button>
             <button id="btnSwitch" class="ctrl-btn" title="Switch Camera">&#x1f504;</button>
+        </div>
 
-            <div class="zoom-group">
-                <label>Zoom</label>
-                <input type="range" id="zoomSlider" min="1" max="10" step="0.1" value="1" />
-                <span id="zoomValue" class="zoom-value">1.0x</span>
+        <!-- Row 2: Zoom controls + Resolution -->
+        <div class="control-row">
+            <button id="btnZoomOut" class="ctrl-btn zoom-btn" title="Zoom Out">&minus;</button>
+            <span id="zoomDisplay" class="zoom-display">1.0x</span>
+            <button id="btnZoomIn" class="ctrl-btn zoom-btn" title="Zoom In">+</button>
+            <button id="btnZoomReset" class="ctrl-btn reset-btn" title="Reset Zoom">Reset</button>
+            <div class="separator"></div>
+            <div class="res-group">
+                <button class="res-btn" data-res="480p">480p</button>
+                <button class="res-btn active" data-res="720p">720p</button>
+                <button class="res-btn" data-res="1080p">1080p</button>
             </div>
         </div>
 
@@ -195,28 +241,32 @@
         </div>
     </div>
 
-    <audio id="audioPlayer" autoplay></audio>
-
     <script>
-        const videoFeed = document.getElementById('videoFeed');
-        const noSignal = document.getElementById('noSignal');
-        const statusBadge = document.getElementById('statusBadge');
-        const zoomSlider = document.getElementById('zoomSlider');
-        const zoomValue = document.getElementById('zoomValue');
-        const btnAudio = document.getElementById('btnAudio');
-        const btnRotate = document.getElementById('btnRotate');
-        const btnFlash = document.getElementById('btnFlash');
-        const btnSwitch = document.getElementById('btnSwitch');
-        const audioPlayer = document.getElementById('audioPlayer');
-        const infoClients = document.getElementById('infoClients');
-        const infoRes = document.getElementById('infoRes');
+        var videoFeed = document.getElementById('videoFeed');
+        var noSignal = document.getElementById('noSignal');
+        var statusBadge = document.getElementById('statusBadge');
+        var btnAudio = document.getElementById('btnAudio');
+        var volumeSlider = document.getElementById('volumeSlider');
+        var volumeValue = document.getElementById('volumeValue');
+        var btnRotate = document.getElementById('btnRotate');
+        var btnFlash = document.getElementById('btnFlash');
+        var btnSwitch = document.getElementById('btnSwitch');
+        var btnZoomIn = document.getElementById('btnZoomIn');
+        var btnZoomOut = document.getElementById('btnZoomOut');
+        var btnZoomReset = document.getElementById('btnZoomReset');
+        var zoomDisplay = document.getElementById('zoomDisplay');
+        var infoClients = document.getElementById('infoClients');
+        var infoRes = document.getElementById('infoRes');
+        var resButtons = document.querySelectorAll('.res-btn');
 
-        let rotation = 0;
-        let audioEnabled = false;
-        let flashEnabled = false;
+        var rotation = 0;
+        var audioEnabled = false;
+        var flashEnabled = false;
+        var currentZoom = 1.0;
 
-        const baseUrl = window.location.origin;
+        var baseUrl = window.location.origin;
 
+        // ── Video ──────────────────────────────────────────────
         function connectVideo() {
             videoFeed.src = baseUrl + '/video';
             videoFeed.style.display = 'block';
@@ -239,12 +289,138 @@
             setTimeout(connectVideo, 2000);
         });
 
-        zoomSlider.addEventListener('input', function () {
-            const val = parseFloat(this.value);
-            zoomValue.textContent = val.toFixed(1) + 'x';
-            fetch(baseUrl + '/api/zoom?level=' + val, { method: 'POST' }).catch(function () {});
+        // ── Audio (Web Audio API with raw PCM) ─────────────────
+        var audioCtx = null;
+        var gainNode = null;
+        var audioReader = null;
+        var nextPlayTime = 0;
+        var leftoverBytes = null;
+        var SAMPLE_RATE = 16000;
+
+        function initAudioContext() {
+            if (audioCtx) return;
+            var AC = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AC({ sampleRate: SAMPLE_RATE });
+            gainNode = audioCtx.createGain();
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.value = parseInt(volumeSlider.value) / 100;
+        }
+
+        function startAudio() {
+            initAudioContext();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            nextPlayTime = 0;
+            leftoverBytes = null;
+
+            fetch(baseUrl + '/audio')
+                .then(function (response) {
+                    audioReader = response.body.getReader();
+                    readAudioChunk();
+                })
+                .catch(function () {
+                    audioEnabled = false;
+                    btnAudio.classList.remove('active');
+                });
+        }
+
+        function readAudioChunk() {
+            if (!audioReader || !audioEnabled) return;
+            audioReader.read().then(function (result) {
+                if (result.done) return;
+                playPcmChunk(result.value);
+                readAudioChunk();
+            }).catch(function () {
+                if (audioEnabled) {
+                    setTimeout(startAudio, 1000);
+                }
+            });
+        }
+
+        function playPcmChunk(rawData) {
+            if (!audioCtx || !gainNode) return;
+
+            var data;
+            if (leftoverBytes) {
+                data = new Uint8Array(leftoverBytes.length + rawData.byteLength);
+                data.set(leftoverBytes, 0);
+                data.set(new Uint8Array(rawData.buffer, rawData.byteOffset, rawData.byteLength), leftoverBytes.length);
+                leftoverBytes = null;
+            } else {
+                data = new Uint8Array(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+            }
+
+            var usableLen = data.length - (data.length % 2);
+            if (data.length % 2 !== 0) {
+                leftoverBytes = new Uint8Array([data[data.length - 1]]);
+            }
+            if (usableLen < 2) return;
+
+            var aligned = new ArrayBuffer(usableLen);
+            new Uint8Array(aligned).set(data.subarray(0, usableLen));
+            var int16 = new Int16Array(aligned);
+
+            var audioBuffer = audioCtx.createBuffer(1, int16.length, SAMPLE_RATE);
+            var channel = audioBuffer.getChannelData(0);
+            for (var i = 0; i < int16.length; i++) {
+                channel[i] = int16[i] / 32768.0;
+            }
+
+            var source = audioCtx.createBufferSourceNode();
+            source.buffer = audioBuffer;
+            source.connect(gainNode);
+
+            var now = audioCtx.currentTime;
+            if (nextPlayTime < now) {
+                nextPlayTime = now + 0.05;
+            }
+            source.start(nextPlayTime);
+            nextPlayTime += audioBuffer.duration;
+        }
+
+        function stopAudio() {
+            if (audioReader) {
+                audioReader.cancel().catch(function () {});
+                audioReader = null;
+            }
+            leftoverBytes = null;
+        }
+
+        btnAudio.addEventListener('click', function () {
+            audioEnabled = !audioEnabled;
+            btnAudio.classList.toggle('active', audioEnabled);
+            if (audioEnabled) {
+                startAudio();
+            } else {
+                stopAudio();
+            }
         });
 
+        volumeSlider.addEventListener('input', function () {
+            var val = parseInt(this.value);
+            volumeValue.textContent = val + '%';
+            if (gainNode) {
+                gainNode.gain.value = val / 100;
+            }
+        });
+
+        // ── Zoom (+/- buttons, 0.2 step) ────────────────────────
+        function sendZoom(action) {
+            fetch(baseUrl + '/api/zoom?action=' + action, { method: 'POST' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    currentZoom = data.zoom;
+                    zoomDisplay.textContent = currentZoom.toFixed(1) + 'x';
+                })
+                .catch(function () {});
+        }
+
+        btnZoomIn.addEventListener('click', function () { sendZoom('in'); });
+        btnZoomOut.addEventListener('click', function () { sendZoom('out'); });
+        btnZoomReset.addEventListener('click', function () { sendZoom('reset'); });
+
+        // ── Rotate ──────────────────────────────────────────────
         btnRotate.addEventListener('click', function () {
             fetch(baseUrl + '/api/rotate', { method: 'POST' })
                 .then(function (r) { return r.json(); })
@@ -255,18 +431,7 @@
                 .catch(function () {});
         });
 
-        btnAudio.addEventListener('click', function () {
-            audioEnabled = !audioEnabled;
-            btnAudio.classList.toggle('active', audioEnabled);
-            if (audioEnabled) {
-                audioPlayer.src = baseUrl + '/audio';
-                audioPlayer.play().catch(function () {});
-            } else {
-                audioPlayer.pause();
-                audioPlayer.removeAttribute('src');
-            }
-        });
-
+        // ── Flash ───────────────────────────────────────────────
         btnFlash.addEventListener('click', function () {
             fetch(baseUrl + '/api/flash', { method: 'POST' })
                 .then(function (r) { return r.json(); })
@@ -277,15 +442,34 @@
                 .catch(function () {});
         });
 
+        // ── Switch Camera ───────────────────────────────────────
         btnSwitch.addEventListener('click', function () {
             fetch(baseUrl + '/api/switch', { method: 'POST' }).catch(function () {});
         });
 
+        // ── Resolution ──────────────────────────────────────────
+        resButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var res = this.getAttribute('data-res');
+                fetch(baseUrl + '/api/resolution?value=' + res, { method: 'POST' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        resButtons.forEach(function (b) { b.classList.remove('active'); });
+                        var active = document.querySelector('.res-btn[data-res="' + data.resolution + '"]');
+                        if (active) active.classList.add('active');
+                    })
+                    .catch(function () {});
+            });
+        });
+
+        // ── Status polling ──────────────────────────────────────
         function pollStatus() {
             fetch(baseUrl + '/api/status')
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     infoClients.textContent = 'Clients: ' + (data.clients || 0);
+                    currentZoom = data.zoom || 1;
+                    zoomDisplay.textContent = currentZoom.toFixed(1) + 'x';
                 })
                 .catch(function () {})
                 .finally(function () {
