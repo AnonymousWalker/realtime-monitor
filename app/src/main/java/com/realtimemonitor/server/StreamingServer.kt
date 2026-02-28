@@ -1,12 +1,15 @@
 package com.realtimemonitor.server
 
 import fi.iki.elonen.NanoHTTPD
+import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.log10
+import kotlin.math.sqrt
 
 class StreamingServer(
     port: Int = DEFAULT_PORT,
@@ -17,16 +20,20 @@ class StreamingServer(
         const val DEFAULT_PORT = 4747
         private const val MJPEG_BOUNDARY = "--frame"
         private const val ZOOM_STEP = 0.2f
+        private const val MAX_AUDIO_QUEUE_SIZE = 10
     }
 
     private val mjpegClients = ConcurrentLinkedQueue<MjpegClient>()
-    private val audioClients = ConcurrentLinkedQueue<AudioClient>()
+    private val audioBuffer = ConcurrentLinkedQueue<ByteArray>()
 
     private var currentZoom = 1.0f
     private var maxZoom = 10.0f
     private var rotationDegrees = 0
     private var flashOn = false
     private var currentResolution = "720p"
+
+    @Volatile
+    private var currentAudioLevel = -60f
 
     var onZoomChanged: ((Float) -> Unit)? = null
     var onFlashToggled: ((Boolean) -> Unit)? = null
@@ -44,12 +51,13 @@ class StreamingServer(
         return when {
             uri == "/" || uri == "/index.html" -> serveWebClient()
             uri == "/video" -> serveMjpegStream()
-            uri == "/audio" -> serveAudioStream()
+            uri == "/audio/poll" -> serveAudioPoll()
             uri == "/api/zoom" && method == Method.POST -> handleZoom(session)
             uri == "/api/rotate" && method == Method.POST -> handleRotate()
             uri == "/api/flash" && method == Method.POST -> handleFlash()
             uri == "/api/switch" && method == Method.POST -> handleSwitchCamera()
             uri == "/api/resolution" && method == Method.POST -> handleResolution(session)
+            uri == "/api/audio-level" -> handleAudioLevel()
             uri == "/api/status" -> handleStatus()
             else -> newFixedLengthResponse(
                 Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"
@@ -73,18 +81,36 @@ class StreamingServer(
     }
 
     fun pushAudioData(pcmData: ByteArray) {
-        val deadClients = mutableListOf<AudioClient>()
-        for (client in audioClients) {
-            try {
-                client.pushData(pcmData)
-            } catch (_: Exception) {
-                deadClients.add(client)
-            }
+        val instantDb = calculateRmsDb(pcmData)
+        currentAudioLevel = if (instantDb > currentAudioLevel) {
+            instantDb
+        } else {
+            currentAudioLevel * 0.6f + instantDb * 0.4f
         }
-        deadClients.forEach {
-            audioClients.remove(it)
-            it.close()
+
+        audioBuffer.offer(pcmData.clone())
+        while (audioBuffer.size > MAX_AUDIO_QUEUE_SIZE) {
+            audioBuffer.poll()
         }
+    }
+
+    private fun calculateRmsDb(pcmData: ByteArray): Float {
+        val sampleCount = pcmData.size / 2
+        if (sampleCount == 0) return -60f
+
+        var sumSquares = 0.0
+        for (i in 0 until sampleCount) {
+            val low = pcmData[i * 2].toInt() and 0xFF
+            val high = pcmData[i * 2 + 1].toInt()
+            val sample = (high shl 8) or low
+            sumSquares += sample.toDouble() * sample.toDouble()
+        }
+
+        val rms = sqrt(sumSquares / sampleCount)
+        if (rms < 1.0) return -60f
+
+        val db = 20.0 * log10(rms / 32768.0)
+        return db.toFloat().coerceIn(-60f, 0f)
     }
 
     fun getConnectedClientCount(): Int = mjpegClients.size
@@ -116,17 +142,34 @@ class StreamingServer(
         return response
     }
 
-    private fun serveAudioStream(): Response {
-        val client = AudioClient()
-        audioClients.add(client)
+    private fun serveAudioPoll(): Response {
+        val chunks = mutableListOf<ByteArray>()
+        while (true) {
+            val chunk = audioBuffer.poll() ?: break
+            chunks.add(chunk)
+        }
 
-        val response = newChunkedResponse(
-            Response.Status.OK,
-            "application/octet-stream",
-            client.inputStream
+        if (chunks.isEmpty()) {
+            val response = newFixedLengthResponse(
+                Response.Status.OK, "application/octet-stream",
+                ByteArrayInputStream(ByteArray(0)), 0
+            )
+            response.addHeader("Access-Control-Allow-Origin", "*")
+            return response
+        }
+
+        val totalSize = chunks.sumOf { it.size }
+        val combined = ByteArray(totalSize)
+        var offset = 0
+        for (chunk in chunks) {
+            System.arraycopy(chunk, 0, combined, offset, chunk.size)
+            offset += chunk.size
+        }
+
+        val response = newFixedLengthResponse(
+            Response.Status.OK, "application/octet-stream",
+            ByteArrayInputStream(combined), totalSize.toLong()
         )
-        response.addHeader("Cache-Control", "no-cache")
-        response.addHeader("Connection", "keep-alive")
         response.addHeader("Access-Control-Allow-Origin", "*")
         return response
     }
@@ -184,6 +227,10 @@ class StreamingServer(
         return jsonResponse("""{"resolution":"$currentResolution"}""")
     }
 
+    private fun handleAudioLevel(): Response {
+        return jsonResponse("""{"level":$currentAudioLevel}""")
+    }
+
     private fun handleStatus(): Response {
         return jsonResponse(
             """{"zoom":$currentZoom,"maxZoom":$maxZoom,"rotation":$rotationDegrees,"flash":$flashOn,"resolution":"$currentResolution","clients":${getConnectedClientCount()}}"""
@@ -199,8 +246,7 @@ class StreamingServer(
     override fun stop() {
         mjpegClients.forEach { it.close() }
         mjpegClients.clear()
-        audioClients.forEach { it.close() }
-        audioClients.clear()
+        audioBuffer.clear()
         super.stop()
     }
 
@@ -232,27 +278,4 @@ class StreamingServer(
         }
     }
 
-    inner class AudioClient {
-        private val pipedOut = PipedOutputStream()
-        val inputStream: PipedInputStream = PipedInputStream(pipedOut, 64 * 1024)
-        private val closed = AtomicBoolean(false)
-
-        fun pushData(pcmData: ByteArray) {
-            if (closed.get()) return
-            try {
-                pipedOut.write(pcmData)
-                pipedOut.flush()
-            } catch (e: IOException) {
-                close()
-                throw e
-            }
-        }
-
-        fun close() {
-            if (closed.compareAndSet(false, true)) {
-                try { pipedOut.close() } catch (_: Exception) { }
-                try { inputStream.close() } catch (_: Exception) { }
-            }
-        }
-    }
 }
