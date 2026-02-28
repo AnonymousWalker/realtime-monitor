@@ -231,13 +231,11 @@
             <div class="res-group">
                 <button class="res-btn" data-res="480p">480p</button>
                 <button class="res-btn active" data-res="720p">720p</button>
-                <button class="res-btn" data-res="1080p">1080p</button>
             </div>
         </div>
 
         <div class="info-bar">
             <span id="infoClients">Clients: —</span>
-            <span id="infoRes">—</span>
         </div>
     </div>
 
@@ -256,7 +254,6 @@
         var btnZoomReset = document.getElementById('btnZoomReset');
         var zoomDisplay = document.getElementById('zoomDisplay');
         var infoClients = document.getElementById('infoClients');
-        var infoRes = document.getElementById('infoRes');
         var resButtons = document.querySelectorAll('.res-btn');
 
         var rotation = 0;
@@ -277,7 +274,6 @@
 
         videoFeed.addEventListener('load', function () {
             noSignal.style.display = 'none';
-            infoRes.textContent = videoFeed.naturalWidth + 'x' + videoFeed.naturalHeight;
         });
 
         videoFeed.addEventListener('error', function () {
