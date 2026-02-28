@@ -69,20 +69,19 @@
             background: #16213e;
             padding: 10px 14px 8px;
             border-top: 1px solid #1a2744;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
         }
 
         .control-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 16px;
             margin-bottom: 8px;
         }
 
         .control-row:last-child { margin-bottom: 0; }
-
-        .control-row.wrap-row {
-            flex-wrap: wrap;
-        }
 
         .ctrl-group {
             display: flex;
@@ -253,7 +252,7 @@
 
     <div class="controls">
         <!-- Row 1: Volume group + Other controls (wraps on small screens) -->
-        <div class="control-row wrap-row">
+        <div class="control-row">
             <div class="ctrl-group">
                 <button id="btnAudio" class="ctrl-btn" title="Toggle Audio">&#x1f50a;</button>
                 <div class="volume-group">
