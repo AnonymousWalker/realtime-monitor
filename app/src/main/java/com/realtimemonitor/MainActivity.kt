@@ -2,6 +2,7 @@ package com.realtimemonitor
 
 import android.Manifest
 import android.content.ClipData
+import android.os.Build
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageButton
@@ -27,20 +29,26 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.realtimemonitor.camera.CameraHelper
 import com.realtimemonitor.camera.StreamResolution
 import com.realtimemonitor.server.StreamingServer
+import com.realtimemonitor.wifi.WifiDirectHelper
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 100
-        private val REQUIRED_PERMISSIONS = arrayOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        )
+        private fun getRequiredPermissions(): Array<String> = buildList {
+            add(Manifest.permission.CAMERA)
+            add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            }
+        }.toTypedArray()
     }
 
     private lateinit var cameraHelper: CameraHelper
     private var streamingServer: StreamingServer? = null
+    private val wifiDirectHelper = WifiDirectHelper(this)
 
     private lateinit var previewView: PreviewView
     private lateinit var tvStatus: TextView
@@ -49,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnShowLink: ImageButton
 
     private var isStreaming = false
+    private var usedWifiDirect = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,11 +89,11 @@ class MainActivity : AppCompatActivity() {
         if (allPermissionsGranted()) {
             initializeCamera()
         } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE)
+            ActivityCompat.requestPermissions(this, getRequiredPermissions(), PERMISSION_REQUEST_CODE)
         }
     }
 
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+    private fun allPermissionsGranted() = getRequiredPermissions().all {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -111,6 +120,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun startStreaming() {
         val port = StreamingServer.DEFAULT_PORT
+        val wifiIp = getWifiIpAddress()
+        val hasWifi = wifiIp.isNotEmpty() && wifiIp != "0.0.0.0"
+
+        if (hasWifi) {
+            startStreamingWithHost(wifiIp, port, useWifiDirect = false)
+            return
+        }
+
+        tvStatus.text = getString(R.string.status_wifi_direct_creating)
+        btnStartStop.isEnabled = false
+        wifiDirectHelper.createGroup { success, goIp ->
+            runOnUiThread {
+                btnStartStop.isEnabled = true
+                if (success && goIp != null) {
+                    usedWifiDirect = true
+                    startStreamingWithHost(goIp, port, useWifiDirect = true)
+                } else {
+                    tvStatus.text = getString(R.string.status_ready)
+                    Toast.makeText(this, R.string.wifi_direct_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun startStreamingWithHost(hostIp: String, port: Int, useWifiDirect: Boolean) {
         streamingServer = StreamingServer(port) { filename ->
             try {
                 assets.open(filename)
@@ -156,11 +190,14 @@ class MainActivity : AppCompatActivity() {
             cameraHelper.startAudioCapture()
             isStreaming = true
 
-            val ip = getWifiIpAddress()
-            tvUrl.text = String.format("http://%s:%d/", ip, port)
-            tvStatus.text = getString(R.string.status_streaming)
+            tvUrl.text = String.format("http://%s:%d/", hostIp, port)
+            tvStatus.text = if (useWifiDirect) getString(R.string.status_streaming_p2p) else getString(R.string.status_streaming)
             btnStartStop.text = getString(R.string.btn_stop)
         } catch (e: Exception) {
+            if (useWifiDirect) {
+                usedWifiDirect = false
+                wifiDirectHelper.removeGroup()
+            }
             Toast.makeText(this, "Failed to start: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
@@ -172,6 +209,10 @@ class MainActivity : AppCompatActivity() {
         streamingServer?.stop()
         streamingServer = null
         isStreaming = false
+        if (usedWifiDirect) {
+            wifiDirectHelper.removeGroup()
+            usedWifiDirect = false
+        }
 
         tvUrl.text = ""
         tvStatus.text = getString(R.string.status_stopped)
@@ -181,10 +222,12 @@ class MainActivity : AppCompatActivity() {
     private fun showStreamUrlDialog(url: String) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_stream_url, null)
         val tvStreamUrl = view.findViewById<TextView>(R.id.tvStreamUrl)
+        val tvP2pHint = view.findViewById<TextView>(R.id.tvP2pHint)
         val ivQrCode = view.findViewById<ImageView>(R.id.ivQrCode)
         val btnCopyUrl = view.findViewById<Button>(R.id.btnCopyUrl)
 
         tvStreamUrl.text = url
+        tvP2pHint.visibility = if (url.contains("192.168.49")) View.VISIBLE else View.GONE
         generateQrCodeBitmap(url)?.let { ivQrCode.setImageBitmap(it) }
 
         val dialog = AlertDialog.Builder(this)
@@ -243,5 +286,6 @@ class MainActivity : AppCompatActivity() {
             stopStreaming()
         }
         cameraHelper.release()
+        wifiDirectHelper.release()
     }
 }

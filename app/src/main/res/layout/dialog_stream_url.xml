@@ -26,6 +26,17 @@
         android:paddingBottom="12dp" />
 
     <TextView
+        android:id="@+id/tvP2pHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/dialog_p2p_hint"
+        android:textColor="#f0c674"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:paddingBottom="8dp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/tvStreamUrl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
