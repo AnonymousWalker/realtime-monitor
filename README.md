@@ -18,7 +18,7 @@ A baby monitor Android app that streams real-time video and audio over your loca
 1. Install and launch the app on an Android phone
 2. Grant camera and microphone permissions
 3. Tap **Start Streaming**
-4. Open the displayed URL (e.g. `http://192.168.86.195:4747/`) in any browser on the same WiFi network
+4. Open the displayed URL (e.g. `http://192.168.86.195:5000/`) in any browser on the same WiFi network
 5. Monitor your baby with live video and audio
 
 ## Building

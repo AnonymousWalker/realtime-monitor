@@ -1,17 +1,29 @@
 package com.realtimemonitor
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
 import com.realtimemonitor.camera.CameraHelper
 import com.realtimemonitor.camera.StreamResolution
 import com.realtimemonitor.server.StreamingServer
@@ -34,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvUrl: TextView
     private lateinit var btnStartStop: Button
+    private lateinit var btnShowLink: ImageButton
 
     private var isStreaming = false
 
@@ -47,11 +60,21 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvUrl = findViewById(R.id.tvUrl)
         btnStartStop = findViewById(R.id.btnStartStop)
+        btnShowLink = findViewById(R.id.btnShowLink)
 
         cameraHelper = CameraHelper(this)
 
         btnStartStop.setOnClickListener {
             if (isStreaming) stopStreaming() else startStreaming()
+        }
+
+        btnShowLink.setOnClickListener {
+            val url = tvUrl.text.toString()
+            if (url.isNotEmpty()) {
+                showStreamUrlDialog(url)
+            } else {
+                Toast.makeText(this, R.string.start_streaming_first, Toast.LENGTH_SHORT).show()
+            }
         }
 
         if (allPermissionsGranted()) {
@@ -153,6 +176,51 @@ class MainActivity : AppCompatActivity() {
         tvUrl.text = ""
         tvStatus.text = getString(R.string.status_stopped)
         btnStartStop.text = getString(R.string.btn_start)
+    }
+
+    private fun showStreamUrlDialog(url: String) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_stream_url, null)
+        val tvStreamUrl = view.findViewById<TextView>(R.id.tvStreamUrl)
+        val ivQrCode = view.findViewById<ImageView>(R.id.ivQrCode)
+        val btnCopyUrl = view.findViewById<Button>(R.id.btnCopyUrl)
+
+        tvStreamUrl.text = url
+        generateQrCodeBitmap(url)?.let { ivQrCode.setImageBitmap(it) }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
+
+        btnCopyUrl.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Stream URL", url))
+            Toast.makeText(this, R.string.url_copied, Toast.LENGTH_SHORT).show()
+        }
+
+        dialog.show()
+    }
+
+    private fun generateQrCodeBitmap(content: String, sizePx: Int = 512): Bitmap? {
+        return try {
+            val hints = hashMapOf<EncodeHintType, Any>().apply {
+                put(EncodeHintType.CHARACTER_SET, "UTF-8")
+                put(EncodeHintType.MARGIN, 1)
+            }
+            val writer = QRCodeWriter()
+            val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
+            val width = bitMatrix.width
+            val height = bitMatrix.height
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                }
+            }
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
     }
 
     @Suppress("DEPRECATION")

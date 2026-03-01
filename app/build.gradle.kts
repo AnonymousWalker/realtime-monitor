@@ -11,8 +11,8 @@ android {
         applicationId = "com.realtimemonitor"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 13
+        versionName = "1.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -56,6 +56,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
     implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("com.google.zxing:core:3.5.3")
 
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 

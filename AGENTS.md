@@ -26,7 +26,7 @@ All Gradle commands require `ANDROID_HOME=/opt/android-sdk` in the environment.
 
 - `MainActivity` — camera preview + start/stop streaming controls
 - `CameraHelper` — CameraX wrapper: captures YUV frames → JPEG, manages audio via AudioRecord
-- `StreamingServer` — NanoHTTPD HTTP server on port 4747; serves MJPEG video, WAV audio, and control API
+- `StreamingServer` — NanoHTTPD HTTP server on port 5000; serves MJPEG video, WAV audio, and control API
 - `WavHeader` — generates WAV file headers for audio streaming
 - `app/src/main/assets/index.html` — browser-based monitoring client (dark-themed)
 
