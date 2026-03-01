@@ -8,4 +8,11 @@
     <string name="status_streaming">Streaming…</string>
     <string name="status_stopped">Stopped. Tap Start to begin streaming.</string>
     <string name="permission_denied">Camera and microphone permissions are required</string>
+    <string name="btn_show_link">Show link</string>
+    <string name="dialog_stream_url_title">Connect to stream</string>
+    <string name="dialog_stream_url_hint">Scan the QR code or open this URL in your browser:</string>
+    <string name="btn_copy_url">Copy URL</string>
+    <string name="url_copied">URL copied to clipboard</string>
+    <string name="start_streaming_first">Start streaming first to get the link</string>
+    <string name="qr_code_content_description">QR code to connect to stream</string>
 </resources>

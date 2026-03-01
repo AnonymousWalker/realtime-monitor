@@ -17,7 +17,7 @@ class StreamingServer(
 ) : NanoHTTPD(port) {
 
     companion object {
-        const val DEFAULT_PORT = 4747
+        const val DEFAULT_PORT = 5000
         private const val MJPEG_BOUNDARY = "--frame"
         private const val ZOOM_STEP = 0.2f
         private const val MAX_AUDIO_QUEUE_SIZE = 10
