@@ -37,6 +37,21 @@
         android:visibility="gone" />
 
     <TextView
+        android:id="@+id/tvP2pPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#4ecca3"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:paddingVertical="8dp"
+        android:paddingHorizontal="12dp"
+        android:background="#1a1a2e"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/tvStreamUrl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

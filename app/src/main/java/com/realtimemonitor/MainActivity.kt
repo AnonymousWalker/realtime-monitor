@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
 
     private var isStreaming = false
     private var usedWifiDirect = false
+    private var wifiDirectPassphrase: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +81,7 @@ class MainActivity : AppCompatActivity() {
         btnShowLink.setOnClickListener {
             val url = tvUrl.text.toString()
             if (url.isNotEmpty()) {
-                showStreamUrlDialog(url)
+                showStreamUrlDialog(url, wifiDirectPassphrase)
             } else {
                 Toast.makeText(this, R.string.start_streaming_first, Toast.LENGTH_SHORT).show()
             }
@@ -130,11 +131,12 @@ class MainActivity : AppCompatActivity() {
 
         tvStatus.text = getString(R.string.status_wifi_direct_creating)
         btnStartStop.isEnabled = false
-        wifiDirectHelper.createGroup { success, goIp ->
+        wifiDirectHelper.createGroup { success, goIp, passphrase ->
             runOnUiThread {
                 btnStartStop.isEnabled = true
                 if (success && goIp != null) {
                     usedWifiDirect = true
+                    wifiDirectPassphrase = passphrase
                     startStreamingWithHost(goIp, port, useWifiDirect = true)
                 } else {
                     tvStatus.text = getString(R.string.status_ready)
@@ -212,6 +214,7 @@ class MainActivity : AppCompatActivity() {
         if (usedWifiDirect) {
             wifiDirectHelper.removeGroup()
             usedWifiDirect = false
+            wifiDirectPassphrase = null
         }
 
         tvUrl.text = ""
@@ -219,15 +222,21 @@ class MainActivity : AppCompatActivity() {
         btnStartStop.text = getString(R.string.btn_start)
     }
 
-    private fun showStreamUrlDialog(url: String) {
+    private fun showStreamUrlDialog(url: String, p2pPassphrase: String? = null) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_stream_url, null)
         val tvStreamUrl = view.findViewById<TextView>(R.id.tvStreamUrl)
         val tvP2pHint = view.findViewById<TextView>(R.id.tvP2pHint)
+        val tvP2pPassword = view.findViewById<TextView>(R.id.tvP2pPassword)
         val ivQrCode = view.findViewById<ImageView>(R.id.ivQrCode)
         val btnCopyUrl = view.findViewById<Button>(R.id.btnCopyUrl)
 
         tvStreamUrl.text = url
-        tvP2pHint.visibility = if (url.contains("192.168.49")) View.VISIBLE else View.GONE
+        val isP2p = url.contains("192.168.49")
+        tvP2pHint.visibility = if (isP2p) View.VISIBLE else View.GONE
+        if (tvP2pPassword != null) {
+            tvP2pPassword.visibility = if (isP2p && !p2pPassphrase.isNullOrEmpty()) View.VISIBLE else View.GONE
+            tvP2pPassword.text = getString(R.string.dialog_p2p_password, p2pPassphrase ?: "")
+        }
         generateQrCodeBitmap(url)?.let { ivQrCode.setImageBitmap(it) }
 
         val dialog = AlertDialog.Builder(this)

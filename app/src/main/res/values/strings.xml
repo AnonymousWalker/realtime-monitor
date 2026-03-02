@@ -19,4 +19,5 @@
     <string name="status_streaming_p2p">Streaming (Wi‑Fi Direct)…</string>
     <string name="wifi_direct_failed">Wi‑Fi Direct failed. Enable Wi‑Fi or try again.</string>
     <string name="dialog_p2p_hint">On the viewer device: connect to this phone’s Wi‑Fi Direct network in Settings first, then open the URL above.</string>
+    <string name="dialog_p2p_password">Wi‑Fi password: %1$s</string>
 </resources>
