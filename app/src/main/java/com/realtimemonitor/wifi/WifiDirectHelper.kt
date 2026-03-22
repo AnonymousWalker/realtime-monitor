@@ -131,6 +131,6 @@ class WifiDirectHelper(private val context: Context) {
         /** Network name and passphrase shown to user so client can connect to Wi‑Fi Direct. */
         /** Must start with DIRECT-xy per platform requirement (e.g. Android 12). */
         const val P2P_NETWORK_NAME = "DIRECT-xy-RealtimeMonitor"
-        const val P2P_PASSPHRASE = "realtime1"
+        const val P2P_PASSPHRASE = "realtime"
     }
 }
