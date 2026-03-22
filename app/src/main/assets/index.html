@@ -391,6 +391,35 @@
 
         var baseUrl = window.location.origin;
 
+        // ── Keep screen on (viewer device) while this page is active ─────────────
+        var screenWakeLock = null;
+        function requestScreenWakeLock() {
+            if (!('wakeLock' in navigator) || !navigator.wakeLock) return;
+            navigator.wakeLock.request('screen').then(function (lock) {
+                screenWakeLock = lock;
+                lock.addEventListener('release', function () {
+                    screenWakeLock = null;
+                });
+            }).catch(function () {});
+        }
+        function releaseScreenWakeLock() {
+            if (screenWakeLock) {
+                screenWakeLock.release().catch(function () {});
+                screenWakeLock = null;
+            }
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+                requestScreenWakeLock();
+            }
+        });
+        window.addEventListener('pagehide', releaseScreenWakeLock);
+        // Many mobile browsers only grant wake lock after a user gesture — first tap covers that.
+        document.addEventListener('click', function wakeLockOnFirstInteraction() {
+            requestScreenWakeLock();
+            document.removeEventListener('click', wakeLockOnFirstInteraction, true);
+        }, true);
+
         // ── Video ──────────────────────────────────────────────
         function connectVideo() {
             videoFeed.src = baseUrl + '/video';
@@ -398,11 +427,13 @@
             noSignal.style.display = 'none';
             statusBadge.textContent = 'Live';
             statusBadge.classList.remove('disconnected');
+            requestScreenWakeLock();
         }
 
         var audioPromptShown = false;
         videoFeed.addEventListener('load', function () {
             noSignal.style.display = 'none';
+            requestScreenWakeLock();
             if (!audioPromptShown) {
                 audioPromptShown = true;
                 document.getElementById('audioDialog').classList.remove('hidden');
